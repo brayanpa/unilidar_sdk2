@@ -66,6 +66,7 @@ protected:
     
     int cloud_scan_num_;
     bool use_system_timestamp_;
+    bool publish_imu_init_frame_;
     double range_min_;
     double range_max_;
 
@@ -85,6 +86,7 @@ UnitreeLidarSDKNode::UnitreeLidarSDKNode(const rclcpp::NodeOptions &options)
     declare_parameter<int>("initialize_type", 2);
     declare_parameter<int>("work_mode", 0);
     declare_parameter<bool>("use_system_timestamp", true);
+    declare_parameter<bool>("publish_imu_init_frame", false);
     declare_parameter<double>("range_min", 0);
     declare_parameter<double>("range_max", 50);
     declare_parameter<int>("cloud_scan_num", 18);
@@ -116,6 +118,7 @@ UnitreeLidarSDKNode::UnitreeLidarSDKNode(const rclcpp::NodeOptions &options)
 
     cloud_scan_num_ = get_parameter("cloud_scan_num").as_int();
     use_system_timestamp_ = get_parameter("use_system_timestamp").as_bool();
+    publish_imu_init_frame_ = get_parameter("publish_imu_init_frame").as_bool();
     range_max_ = get_parameter("range_max").as_double();
     range_min_ = get_parameter("range_min").as_double();
 
@@ -190,21 +193,24 @@ void UnitreeLidarSDKNode::timer_callback()
             imuMsg.linear_acceleration.z = imu.linear_acceleration[2];
 
             pub_imu_->publish(imuMsg);
-
-            // publish tf from initial imu to real-time imu
-            geometry_msgs::msg::TransformStamped transformStamped;
-            transformStamped.header.stamp = this->now(); // 使用当前时间
-            transformStamped.header.frame_id = imu_frame_ + "_initial"; // 父坐标系
-            transformStamped.child_frame_id = imu_frame_; // 子坐标系
-            transformStamped.transform.translation.x = 0;
-            transformStamped.transform.translation.y = 0;
-            transformStamped.transform.translation.z = 0;
-            transformStamped.transform.rotation.x = imu.quaternion[1];
-            transformStamped.transform.rotation.y = imu.quaternion[2];
-            transformStamped.transform.rotation.z = imu.quaternion[3];
-            transformStamped.transform.rotation.w = imu.quaternion[0];
-            broadcaster_->sendTransform(transformStamped);
-
+            
+            if (publish_imu_init_frame_)
+            {
+                // publish tf from initial imu to real-time imu
+                geometry_msgs::msg::TransformStamped transformStamped;
+                transformStamped.header.stamp = this->now(); // 使用当前时间
+                transformStamped.header.frame_id = imu_frame_ + "_initial"; // 父坐标系
+                transformStamped.child_frame_id = imu_frame_; // 子坐标系
+                transformStamped.transform.translation.x = 0;
+                transformStamped.transform.translation.y = 0;
+                transformStamped.transform.translation.z = 0;
+                transformStamped.transform.rotation.x = imu.quaternion[1];
+                transformStamped.transform.rotation.y = imu.quaternion[2];
+                transformStamped.transform.rotation.z = imu.quaternion[3];
+                transformStamped.transform.rotation.w = imu.quaternion[0];
+                broadcaster_->sendTransform(transformStamped);
+            }
+            
             // publish tf from imu to lidar
             transformStamped.header.frame_id = imu_frame_; // 父坐标系
             transformStamped.child_frame_id = cloud_frame_; // 子坐标系
