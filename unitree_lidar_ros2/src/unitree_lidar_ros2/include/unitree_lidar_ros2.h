@@ -24,6 +24,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp/time.hpp"
+#include "rclcpp/qos.hpp"
 
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2/LinearMath/Quaternion.h"
@@ -152,9 +153,11 @@ UnitreeLidarSDKNode::UnitreeLidarSDKNode(const rclcpp::NodeOptions &options)
     lsdk_->setLidarWorkMode(work_mode_);
 
     // ROS2
+    rclcpp::QoS qos_best_effort(1);
+    qos_best_effort.best_effort();
     broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
-    pub_cloud_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(cloud_topic_, 10);
-    pub_imu_ = this->create_publisher<sensor_msgs::msg::Imu>(imu_topic_, 10);
+    pub_cloud_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(cloud_topic_, qos_best_effort);
+    pub_imu_ = this->create_publisher<sensor_msgs::msg::Imu>(imu_topic_, qos_best_effort);
     timer_ = this->create_wall_timer(std::chrono::milliseconds(1), std::bind(&UnitreeLidarSDKNode::timer_callback, this));
 }
 
